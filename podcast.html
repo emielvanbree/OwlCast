@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoreCast - Your Podcast Player</title>
+    <!-- Use a modern, clean font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Load Tailwind CSS from CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; /* Dark background */
+        }
+        .container-wrapper {
+            background-color: #161b22; /* Slightly lighter dark container */
+            border: 1px solid #30363d;
+        }
+        .progress-bar {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: #444c56;
+            border-radius: 9999px;
+            cursor: pointer;
+        }
+        .progress-bar::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #2563eb;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            transition: background .2s ease-in-out;
+        }
+        .progress-bar:hover::-webkit-slider-thumb {
+            background: #3b82f6;
+        }
+        /* Style the native audio element to be hidden but functional */
+        #audioPlayer {
+            display: none;
+        }
+    </style>
+</head>
+<body class="text-gray-200 antialiased flex items-center justify-center min-h-screen p-4">
+
+    <!-- Main Podcast Player Container -->
+    <main class="w-full max-w-sm mx-auto container-wrapper rounded-2xl shadow-2xl overflow-hidden">
+        
+        <!-- Header Section -->
+        <header class="p-6 pb-4">
+            <h1 class="text-2xl font-bold text-center">CoreCast</h1>
+            <p class="text-sm text-gray-400 text-center mt-1">Fat Owl's Deepdive into hardcore punk and metal.</p>
+        </header>
+
+        <!-- Current Episode Section -->
+        <section id="currentEpisode" class="p-6 pt-0">
+            <!-- Cover Image -->
+            <div class="relative w-full aspect-square bg-gray-700 rounded-lg overflow-hidden shadow-lg">
+                <img id="episodeImage" src="https://placehold.co/400x400/222d3e/a0aec0?text=CoreCast+Art" alt="Podcast Episode Cover" class="w-full h-full object-cover">
+            </div>
+
+            <!-- Episode Details -->
+            <div class="mt-6 text-center">
+                <h2 id="episodeTitle" class="text-xl font-semibold leading-tight text-gray-50">Episode Title</h2>
+                <div class="mt-2 text-sm text-gray-400 max-h-16 overflow-hidden transition-all duration-300 ease-in-out" id="episodeDescription">
+                    <p>A short description of the episode. This text will be truncated on mobile to save space and a "read more" button will appear if the text is long. You can add more details about the episode here.</p>
+                </div>
+                <button id="toggleDescription" class="text-sm font-medium text-blue-500 hover:text-blue-400 focus:outline-none mt-2 hidden">Read more</button>
+            </div>
+            
+            <!-- Audio Controls -->
+            <div class="mt-6">
+                <!-- Progress Bar -->
+                <input type="range" id="progressBar" class="progress-bar" value="0" step="0.1">
+
+                <!-- Time Display -->
+                <div class="flex justify-between text-xs mt-2 font-medium">
+                    <span id="currentTime">0:00</span>
+                    <span id="totalTime">0:00</span>
+                </div>
+
+                <!-- Playback Buttons -->
+                <div class="flex items-center justify-center gap-6 mt-4">
+                    <button id="skipBackward" class="text-gray-400 hover:text-blue-500 transition-colors duration-200">
+                        <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M11 6V4H4v16h7v-2h-5V6h5zm-1 20V8l14 8-14 8zm2-14.77V18.77L20.45 16 12 11.23z"/></svg>
+                    </button>
+                    <button id="playPauseBtn" class="w-16 h-16 flex items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transform hover:scale-105 transition-transform duration-200">
+                        <svg id="playIcon" class="w-10 h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <svg id="pauseIcon" class="w-10 h-10 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    </button>
+                    <button id="skipForward" class="text-gray-400 hover:text-blue-500 transition-colors duration-200">
+                        <svg class="w-8 h-8 transform rotate-180" fill="currentColor" viewBox="0 0 24 24"><path d="M11 6V4H4v16h7v-2h-5V6h5zm-1 20V8l14 8-14 8zm2-14.77V18.77L20.45 16 12 11.23z"/></svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Episode List Section -->
+        <section class="p-6 pt-0 mt-4 border-t border-gray-700">
+            <h3 class="text-xl font-semibold mb-4 text-center">All Episodes</h3>
+            <ul id="episodeList" class="space-y-4">
+                <!-- Episode list items will be injected here by JavaScript -->
+            </ul>
+        </section>
+
+    </main>
+
+    <!-- Hidden audio element for playback -->
+    <audio id="audioPlayer"></audio>
+
+    <script>
+        // Use an IIFE for a clean scope
+        (() => {
+            const audioPlayer = document.getElementById('audioPlayer');
+            const playPauseBtn = document.getElementById('playPauseBtn');
+            const playIcon = document.getElementById('playIcon');
+            const pauseIcon = document.getElementById('pauseIcon');
+            const progressBar = document.getElementById('progressBar');
+            const currentTimeEl = document.getElementById('currentTime');
+            const totalTimeEl = document.getElementById('totalTime');
+            const skipBackwardBtn = document.getElementById('skipBackward');
+            const skipForwardBtn = document.getElementById('skipForward');
+            const episodeListEl = document.getElementById('episodeList');
+            const episodeTitleEl = document.getElementById('episodeTitle');
+            const episodeDescriptionEl = document.getElementById('episodeDescription');
+            const episodeImageEl = document.getElementById('episodeImage');
+            const toggleDescriptionBtn = document.getElementById('toggleDescription');
+            
+            // Podcast data
+            const podcasts = [
+                {
+                    title: "Journey through time",
+                    description: "A timeline that traces the lineage from the birth of rock and roll to the modern hardcore punk",
+                    audioUrl: "journey.mp3",
+                    imageUrl: "journeylogo.png"
+                },
+                {
+                    title: "Megalomaniacs Preview",
+                    description: "A preview of the upcoming album by Megalomaniacs",
+                    audioUrl: "megalomaniacs.mp3",
+                    imageUrl: "megalomaniacslogo.jpg"
+                },
+                {
+                    title: "Oldschool Hardcore",
+                    description: "The founding father of hardcore punk. Who were they?",
+                    audioUrl: "oldschool.mp3",
+                    imageUrl: "oldschoollogo.png"
+                },
+                {
+                    title: "Belanda Bastards",
+                    description: "Hearing the sambal spiced tunes of Belanda Bastards for the first time",
+                    audioUrl: "belandabastards.mp3",
+                    imageUrl: "bblogo.png"
+                },
+                {
+                    title: "Crazy Metal Anecdotes",
+                    description: "Crazy chaotic anecdotes from some of the bigger names in Metal",
+                    audioUrl: "metal.mp3",
+                    imageUrl: "metallogo.png"
+                },
+                {
+                    title: "Introducing Empty Fix",
+                    description: "Introducing Empty Fix; Metal and hardcore punk roots, mixing with that melancholic nineties alternative vibe",
+                    audioUrl: "emptyfix.mp3",
+                    imageUrl: "emptyfixlogo.jpg"
+                },
+            ];
+
+            // Function to load and play a podcast episode
+            function loadEpisode(episode) {
+                // Update the UI with the new episode details
+                episodeTitleEl.textContent = episode.title;
+                episodeDescriptionEl.textContent = episode.description;
+                episodeImageEl.src = episode.imageUrl;
+                episodeDescriptionEl.classList.remove('max-h-full');
+                episodeDescriptionEl.classList.add('max-h-16');
+                toggleDescriptionBtn.textContent = 'Read more';
+                toggleDescriptionBtn.classList.add('hidden'); // Hide by default
+
+                // Check if description is too long and show "read more" button
+                if (episodeDescriptionEl.scrollHeight > episodeDescriptionEl.clientHeight) {
+                    toggleDescriptionBtn.classList.remove('hidden');
+                }
+
+                // First, pause any currently playing audio
+                audioPlayer.pause();
+                
+                // Set the audio source
+                audioPlayer.src = episode.audioUrl;
+
+                // Use an event listener to handle playback when the audio is ready
+                // The `{ once: true }` option ensures the listener is removed after it runs
+                const playHandler = () => {
+                    audioPlayer.play().catch(e => console.error("Audio playback failed:", e));
+                };
+                audioPlayer.addEventListener('canplaythrough', playHandler, { once: true });
+
+                // Manually trigger a load to ensure the browser starts fetching the new audio
+                audioPlayer.load();
+
+            }
+
+            // Function to format time in minutes and seconds
+            function formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+            }
+
+            // Populate the episode list
+            function populateEpisodeList() {
+                episodeListEl.innerHTML = '';
+                podcasts.forEach((podcast, index) => {
+                    const li = document.createElement('li');
+                    // Add a data attribute to the entire list item
+                    li.dataset.index = index;
+                    li.classList.add('flex', 'items-start', 'space-x-4', 'p-4', 'rounded-lg', 'bg-gray-800', 'hover:bg-gray-700', 'transition-colors', 'duration-200', 'cursor-pointer');
+                    
+                    li.innerHTML = `
+                        <img src="${podcast.imageUrl}" alt="Episode Art" class="w-12 h-12 rounded-md object-cover flex-shrink-0">
+                        <div class="flex-1">
+                            <h4 class="text-sm font-semibold text-gray-100">${podcast.title}</h4>
+                            <p class="text-xs text-gray-400 mt-1 break-words">${podcast.description}</p>
+                        </div>
+                        <div class="p-2 rounded-full bg-blue-600 hover:bg-blue-500 transition-colors duration-200 flex-shrink-0">
+                            <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        </div>
+                    `;
+                    episodeListEl.appendChild(li);
+                });
+
+                // Attach click listeners to the entire list items
+                document.querySelectorAll('#episodeList li').forEach(listItem => {
+                    listItem.addEventListener('click', (event) => {
+                        const index = event.currentTarget.dataset.index;
+                        loadEpisode(podcasts[index]);
+                    });
+                });
+            }
+
+            // --- Event Listeners ---
+            
+            // Initial load: set up the UI without playing audio automatically
+            window.addEventListener('load', () => {
+                populateEpisodeList();
+                // Manually set initial episode details without playing
+                const initialPodcast = podcasts[0];
+                episodeTitleEl.textContent = initialPodcast.title;
+                episodeDescriptionEl.textContent = initialPodcast.description;
+                episodeImageEl.src = initialPodcast.imageUrl;
+                audioPlayer.src = initialPodcast.audioUrl;
+            });
+
+            // Play/Pause button functionality
+            playPauseBtn.addEventListener('click', () => {
+                if (audioPlayer.paused) {
+                    audioPlayer.play().catch(e => console.error("Audio playback failed:", e));
+                } else {
+                    audioPlayer.pause();
+                }
+            });
+
+            // Update UI based on audio state
+            audioPlayer.addEventListener('play', () => {
+                playIcon.classList.add('hidden');
+                pauseIcon.classList.remove('hidden');
+            });
+            audioPlayer.addEventListener('pause', () => {
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+            });
+
+            // Update progress bar and current time as audio plays
+            audioPlayer.addEventListener('timeupdate', () => {
+                const percentage = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+                progressBar.value = percentage;
+                currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
+            });
+
+            // Update total time when metadata is loaded
+            audioPlayer.addEventListener('loadedmetadata', () => {
+                totalTimeEl.textContent = formatTime(audioPlayer.duration);
+            });
+
+            // Seek functionality
+            progressBar.addEventListener('input', () => {
+                const newTime = (progressBar.value / 100) * audioPlayer.duration;
+                audioPlayer.currentTime = newTime;
+            });
+
+            // Skip backward/forward buttons (e.g., 15 seconds)
+            skipBackwardBtn.addEventListener('click', () => {
+                audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 15);
+            });
+            skipForwardBtn.addEventListener('click', () => {
+                audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 15);
+            });
+
+            // Toggle "read more" for description
+            toggleDescriptionBtn.addEventListener('click', () => {
+                if (episodeDescriptionEl.classList.contains('max-h-16')) {
+                    episodeDescriptionEl.classList.remove('max-h-16');
+                    episodeDescriptionEl.classList.add('max-h-full');
+                    toggleDescriptionBtn.textContent = 'Read less';
+                } else {
+                    episodeDescriptionEl.classList.remove('max-h-full');
+                    episodeDescriptionEl.classList.add('max-h-16');
+                    toggleDescriptionBtn.textContent = 'Read more';
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
